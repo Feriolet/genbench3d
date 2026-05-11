@@ -1,4 +1,4 @@
-name: genbench3d
+name: benchmark_genbench3d
 channels:
   - conda-forge
 dependencies:
@@ -325,3 +325,4 @@ dependencies:
       - meeko==0.5.0
       - molvs==0.1.1
       - vina==1.2.4
+      - ray
