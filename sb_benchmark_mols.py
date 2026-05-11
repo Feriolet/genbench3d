@@ -12,6 +12,9 @@ from genbench3d.data.structure import VinaProtein, GlideProtein, Pocket
 from genbench3d.data import ComplexMinimizer
 from genbench3d.utils import preprocess_mols
 from genbench3d.geometry import ReferenceGeometry
+import sys
+import pandas as pd
+
 
 from rdkit import RDLogger 
 RDLogger.DisableLog('rdApp.*')
@@ -19,10 +22,24 @@ RDLogger.DisableLog('rdApp.*')
 from warnings import simplefilter
 simplefilter(action='ignore', category=DeprecationWarning)
 
+def align_mol_name_with_results(mol_l, original_mol_name, results):
+    results_with_individual_value_dict = {}
+    cel_mol_name = [mol.GetProp('_Name') for mol in mol_l]
+    total_valid_mol = max([len(val) for val in results.values() if type(val) == list])
+
+    for key, val in results.items():
+        if type(val) == list and len(val) == total_valid_mol:
+            data = pd.DataFrame(val, index=cel_mol_name)
+            results_with_individual_value_dict[key] = list(data.reindex(original_mol_name).to_dict().values())
+        else:
+            results_with_individual_value_dict[key] = val
+    
+    return results_with_individual_value_dict
+
+
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(funcName)s: %(message)s',
-                    datefmt='%d/%m/%Y %I:%M:%S %p',
-                    filemode='w',
-                    filename='sb_benchmark.log', 
+                    datefmt='%d/%m/%Y %I:%M:%S %p', 
+                    stream=sys.stdout,
                     encoding='utf-8', 
                     level=logging.INFO)
 
@@ -144,6 +161,8 @@ if args.minimize:
                                             config=config['minimization'])
     
 gen_mols = Chem.SDMolSupplier(args.input_sdf, removeHs=False)
+name_l = [mol.GetProp('_Name') if mol else f"unknown_{i}" for i, mol in enumerate(gen_mols) ]
+
 n_total_mols = len(gen_mols) # Used to compute the molecular graph Validity metric
 gen_mols = preprocess_mols(gen_mols) # Remove empty, None and fragmented RDKit molecules 
 gen_mols_h = [Chem.AddHs(mol, addCoords=True) for mol in gen_mols]
@@ -153,14 +172,18 @@ if args.minimize:
     gen_mols = preprocess_mols(gen_mols) # Remove empty, None and fragmented RDKit molecules 
 else:
     gen_mols = gen_mols_h
-    
+
 results = sb_benchmark.get_results_for_mol_list(gen_mols,
                                                 n_total_mols=n_total_mols,
                                                 do_conf_analysis=args.do_conf_analysis,
                                                 valid_only=args.valid_only)
-    
+
+results = align_mol_name_with_results(mol_l=gen_mols,
+                                      original_mol_name=name_l,
+                                      results=results)
+
 with open(args.output_json, 'w') as f:
-    json.dump(results, f)
+    json.dump(results, f, indent=4)
     
 summary = {}
 for metric_name, values in results.items():

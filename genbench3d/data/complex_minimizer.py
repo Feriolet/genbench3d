@@ -26,6 +26,7 @@ class ComplexMinimizer():
                         ignore_pocket: bool = False,
                         ):
         
+        mol_name = ligand_mol.GetProp('_Name')
         ligand = Chem.AddHs(ligand_mol, addCoords=True)
         if not ignore_pocket:
             complx = Chem.CombineMols(self.pocket.mol, ligand)
@@ -85,7 +86,7 @@ class ComplexMinimizer():
                     writer.write(minimized_ligand)
                     
             # import pdb;pdb.set_trace()
-                    
+            minimized_ligand.SetProp('_Name', mol_name)        
             return minimized_ligand #, E_init - E_final
     
     
