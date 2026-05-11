@@ -3,6 +3,7 @@ from .misc import (get_full_matrix_from_tril,
                    ccdc_mol_to_rdkit_mol,
                    shift_torsion_values,
                    unshift_torsion_values,
+                   preprocess_mol,
                    preprocess_mols,
                    add_hs_to_mols)
 from .molconfviewer import MolConfViewer

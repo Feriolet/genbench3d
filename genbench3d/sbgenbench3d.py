@@ -45,6 +45,7 @@ class SBGenBench3D(GenBench3D):
                    vina_protein: VinaProtein,
                    vina_config: dict,
                    add_minimized: bool,
+                   output_dir: str = None
                    ) -> None:
         self.vina_protein = vina_protein
         
@@ -55,30 +56,33 @@ class SBGenBench3D(GenBench3D):
                                                    n_cpus=vina_config['n_cpus'],
                                                    seed=vina_config['seed'],
                                                    size_border=vina_config['size_border'])
-        self.native_ligand_vina_score = self._vina_scorer.score_mol(self.native_ligand)[0]
-        self.vina_score = VinaScore(self._vina_scorer)
+        
+        self.native_ligand_vina_score = self._vina_scorer.score_mol(self.native_ligand, output_dir=output_dir)[0]
+        self.vina_score = VinaScore(self._vina_scorer, output_dir=output_dir)
         self.sb_metrics.append(self.vina_score)
         
         if add_minimized:
             self.min_vina_score = VinaScore(self._vina_scorer, 
                                             name='Minimized Vina score',
-                                            minimized=True)
+                                            minimized=True, output_dir=output_dir)
             self.native_ligand_min_vina_score = self._vina_scorer.score_mol(self.native_ligand, 
-                                                                            minimized=True)[0]
+                                                                            minimized=True, output_dir=output_dir)[0]
             self.sb_metrics.append(self.min_vina_score)
         
         
     def setup_glide(self,
                     glide_protein: GlideProtein,
                     glide_path: str,
-                    add_minimized: bool) -> None:
+                    add_minimized: bool,
+                    output_dir: str = None) -> None:
         self.glide_protein = glide_protein
         
         # Glide score
         native_cel = ConfEnsembleLibrary.from_mol_list([self.native_ligand])
         self.glide_score = GlideScore(glide_protein,
-                                      glide_path=glide_path)
-        self.native_ligand_glide_score = self.glide_score.get(native_cel)[0]
+                                      glide_path=glide_path,
+                                      output_dir=output_dir)
+        self.native_ligand_glide_score = self.glide_score.get(native_cel, ligands_prefix='native')[0]
         self.sb_metrics.append(self.glide_score)
         
         if add_minimized:
@@ -86,8 +90,9 @@ class SBGenBench3D(GenBench3D):
             self.min_glide_score = GlideScore(glide_protein, 
                                               glide_path=glide_path,
                                             mininplace=True, 
-                                            name='Minimized Glide score')
-            self.native_ligand_min_glide_score = self.min_glide_score.get(native_cel)[0]
+                                            name='Minimized Glide score',
+                                            output_dir=output_dir)
+            self.native_ligand_min_glide_score = self.min_glide_score.get(native_cel, ligands_prefix='native')[0]
             self.sb_metrics.append(self.min_glide_score)
 
 

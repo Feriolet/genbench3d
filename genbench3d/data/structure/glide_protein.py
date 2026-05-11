@@ -37,9 +37,9 @@ class GlideProtein(Protein):
                                                   '.zip')
         self.grid_center = native_ligand.GetConformer().GetPositions().mean(axis=0)
             
-        self.glide_grid_in_filename = 'glide_grid_generation.in'
+        self.glide_grid_in_filename = '/'.join(pdb_filepath.split('/')) + '_glide_grid_generation.in'
         self.glide_grid_in_filepath = self.glide_grid_in_filename
-        
+        print(self.glide_grid_in_filepath)
         if not os.path.exists(self.grid_filepath):
             if os.path.exists(self.glide_grid_in_filepath):
                 os.remove(self.glide_grid_in_filepath)
@@ -64,7 +64,6 @@ class GlideProtein(Protein):
         logging.info(f'Writing glide grid generation input in {self.glide_grid_in_filepath}')
         grid_center_str = [str(value) for value in grid_center]
         d = {'GRIDFILE': self.grid_filepath,
-             'OUTPUTDIR': self.glide_output_dirpath,
              'RECEP_FILE': self.mae_filepath,
              'GRID_CENTER': ','.join(grid_center_str)}
         with open(self.glide_grid_in_filepath, 'w') as f:

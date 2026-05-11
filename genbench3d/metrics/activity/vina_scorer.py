@@ -132,13 +132,13 @@ class VinaScorer():
     def score_mol(self,
                   ligand: Mol,
                   minimized: bool = False,
-                  output_filepath: str = None,
+                  output_dir: str = None,
                   add_hydrogens: bool = True,
                   ) -> List[float]:
             
         energies = self.score_mols(ligands=[ligand],
                                    minimized=minimized,
-                                   output_filepath=output_filepath,
+                                   output_dir=output_dir,
                                    add_hydrogens=add_hydrogens)
         return energies
     
@@ -147,7 +147,7 @@ class VinaScorer():
     def score_mols(self,
                    ligands: List[Mol],
                    minimized: bool = False,
-                   output_filepath: str = None,
+                   output_dir: str = None,
                    add_hydrogens: bool = True,) -> List[float]:
         
         assert self._vina._center is not None, \
@@ -181,8 +181,8 @@ class VinaScorer():
             else:
                 energies = self._vina.score()
                 
-            if output_filepath is not None:
-                self._vina.write_pose(output_filepath, overwrite=True)
+            if output_dir is not None:
+                self._vina.write_pose(f'{output_dir}/{ligand.GetProp("_Name")}_{"minimised" if minimized else "unminimised"}.pdbqt', overwrite=True)
                 
             if len(pdbqt_strings) > 1:
                 current_pos = 0

@@ -66,6 +66,18 @@ parser.add_argument('--do_conf_analysis',
 parser.add_argument('--valid_only',
                     action='store_true',
                     help="Whether to perform analysis only on 3D-valid molecules.")
+parser.add_argument('--output_vina_dir',
+                    type=str,
+                    help="Output vina directory.")
+parser.add_argument('--output_glide_dir',
+                    type=str,
+                    help="Output glide directory")
+parser.add_argument('--log_output',
+                    type=str, default='sb_benchmark.log',
+                    help="log Output directory")
+parser.add_argument('--cancel_protonation',
+                    action='store_true',
+                    help="cancel protonation by obabel or adfr")
 
 args = parser.parse_args()
 
@@ -94,10 +106,12 @@ native_ligand_path = os.path.abspath(args.native_ligand_sdf)
 native_ligand = [mol 
                     for mol in Chem.SDMolSupplier(native_ligand_path, 
                                                 removeHs=False)][0]
-native_ligand = Chem.AddHs(native_ligand, addCoords=True)
+if not args.cancel_protonation:
+    native_ligand = Chem.AddHs(native_ligand, addCoords=True)
 
 vina_protein = VinaProtein(pdb_filepath=original_structure_path,
-                                       prepare_receptor_bin_path=config['bin']['prepare_receptor_bin_path'],)
+                                       prepare_receptor_bin_path=config['bin']['prepare_receptor_bin_path'],
+                                       cancel_protonation=args.cancel_protonation)
 pocket = Pocket(pdb_filepath=vina_protein.protein_clean_filepath, 
                             native_ligand=native_ligand,
                             distance_from_ligand=config['pocket_distance_from_ligand'])
@@ -108,7 +122,8 @@ sb_benchmark = SBGenBench3D(reference_geometry=reference_geometry,
                             native_ligand=native_ligand)
 sb_benchmark.setup_vina(vina_protein,
                         config['vina'],
-                        add_minimized=True)
+                        add_minimized=True,
+                        output_dir=args.output_vina_dir)
 
 if args.glide:
     glide_protein = GlideProtein(pdb_filepath=vina_protein.protein_clean_filepath,
@@ -118,7 +133,8 @@ if args.glide:
                                 structconvert_path=config['bin']['structconvert_path'],)
     sb_benchmark.setup_glide(glide_protein,
                             glide_path=config['bin']['glide_path'],
-                            add_minimized=True)
+                            add_minimized=True,
+                            output_dir=args.output_glide_dir)
 
 if args.gold:
     sb_benchmark.setup_gold_plp(vina_protein)
@@ -134,6 +150,7 @@ gen_mols_h = [Chem.AddHs(mol, addCoords=True) for mol in gen_mols]
 if args.minimize:
     gen_mols = [complex_minimizer.minimize_ligand(mol) 
                 for mol in gen_mols_h]
+    gen_mols = preprocess_mols(gen_mols) # Remove empty, None and fragmented RDKit molecules 
 else:
     gen_mols = gen_mols_h
     

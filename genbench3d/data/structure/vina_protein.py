@@ -11,18 +11,21 @@ class VinaProtein(Protein):
     
     def __init__(self, 
                  pdb_filepath: str,
-                 prepare_receptor_bin_path: str) -> None:
+                 prepare_receptor_bin_path: str,
+                 cancel_protonation: bool=False) -> None:
         super().__init__(pdb_filepath)
         self.prepare_receptor_bin_path = prepare_receptor_bin_path
         self._pdbqt_filepath = pdb_filepath.replace('.pdb', 
                                                    '.pdbqt')
+        self.cancel_protonation = cancel_protonation
         
     
     @property
     def pdbqt_filepath(self):
         if not os.path.exists(self._pdbqt_filepath):
             self.vina_prepare_receptor(universe=self.universe,
-                                       output_pdbqt_filepath=self._pdbqt_filepath) # Using default configuration
+                                       output_pdbqt_filepath=self._pdbqt_filepath,
+                                       protonate_protein= not self.cancel_protonation) # Using default configuration
         assert os.path.exists(self._pdbqt_filepath), \
             'Something went wrong during Vina receptor preparation'
         return self._pdbqt_filepath
@@ -34,7 +37,8 @@ class VinaProtein(Protein):
                               ligand_name: str = None,
                                 chain: str = None,
                                 preparation_method: str = 'adfr',
-                                pH: float = 7.4
+                                pH: float = 7.4,
+                                protonate_protein=True
                                 ) -> None:
         """
         inspired from teachopencadd talktorial 15 on protein_ligand_docking
@@ -42,19 +46,26 @@ class VinaProtein(Protein):
         
         self.extract_protein(universe=universe,
                              output_pdb_filepath=self.protein_filepath)
-        
-        self.clean_protein(input_pdb_filepath=self.protein_filepath,
-                           output_pdb_filepath=self.protein_clean_filepath,
-                           pH=pH)
-        
+        if protonate_protein:
+            self.clean_protein(input_pdb_filepath=self.protein_filepath,
+                            output_pdb_filepath=self.protein_clean_filepath,
+                            pH=pH)
         # self.clean_protein(input_pdb_filepath=self.pdb_filepath,
         #                    output_pdb_filepath=self._protein_clean_filepath,
         #                    pH=pH)
         
         if preparation_method == 'adfr':
-            self.adfr_receptor_preparation(input_pdb_filepath=self.protein_clean_filepath,
-                                           output_pdbqt_filepath=output_pdbqt_filepath)
+            if protonate_protein:
+                self.adfr_receptor_preparation(input_pdb_filepath=self.protein_clean_filepath,
+                                            output_pdbqt_filepath=output_pdbqt_filepath)
+            else:
+                self.adfr_receptor_preparation(input_pdb_filepath=self.protein_filepath,
+                                            output_pdbqt_filepath=output_pdbqt_filepath,
+                                            protonate_protein=protonate_protein)
         else:
+            if not protonate_protein:
+                print('You set not to protonate the protein, but we did not identify the ADFR file')
+                print('I am too lazy to set unprotonated in obabel too xd. Future me problem :p')
             self.pdb_to_pdbqt()
             
         if ligand_name is not None and chain is not None:
@@ -69,6 +80,7 @@ class VinaProtein(Protein):
     def adfr_receptor_preparation(self,
                                   input_pdb_filepath: str,
                                   output_pdbqt_filepath: str,
+                                  protonate_protein: bool = True
                                   ) -> None:
         """
         input_pdb_filepath must be a pbd file that only contains the protein with
@@ -78,6 +90,8 @@ class VinaProtein(Protein):
         arg_list = [self.prepare_receptor_bin_path,
                     f'-r {input_pdb_filepath}',
                     f'-o {output_pdbqt_filepath}']
+        if not protonate_protein:
+            arg_list += [f'-A none']
         cmd = ' '.join(arg_list)
         os.system(cmd)
         

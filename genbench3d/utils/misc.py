@@ -134,6 +134,16 @@ def preprocess_mols(mol_list):
     return new_mol_list
 
 
+def preprocess_mol(mol):
+    if mol is not None:
+        try:
+            if not '.' in Chem.MolToSmiles(mol) and mol.GetNumAtoms() > 0:
+                return Chem.AddHs(mol, addCoords=True)
+        except Exception as e:
+            pass
+    return None
+
+
 def add_hs_to_mols(mol_list,
                    n_threads=12):
     mol_list = [Chem.AddHs(mol, addCoords=True) for mol in mol_list]

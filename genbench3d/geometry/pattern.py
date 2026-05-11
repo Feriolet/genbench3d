@@ -1,10 +1,9 @@
 import re
-
-from rdkit.Chem import GetPeriodicTable
+import rdkit
+from rdkit import Chem
 from typing import (NamedTuple, 
                     Union)
 from functools import cmp_to_key
-from rdkit.Chem import GetPeriodicTable
 
 AtomicSymbol = str
 AtomicNum = int
@@ -12,7 +11,7 @@ FormalCharge = int
 BondType = float
 RingSizes = tuple[int]
 
-periodic_table = GetPeriodicTable()
+periodic_table = Chem.GetPeriodicTable()
 
 class RingSizeTuple(NamedTuple):
     

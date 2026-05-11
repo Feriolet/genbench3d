@@ -109,8 +109,8 @@ class ReferenceGeometry():
         angle_values: dict[AnglePattern, list[float]] = values['angle']
         torsion_values: dict[TorsionPattern, list[float]] = values['torsion']
         
-        bond_bandwidth = 0.01
-        angle_bandwidth = 1.0
+        bond_bandwidth = 0.03
+        angle_bandwidth = 4.0
         torsion_bandwidth = 200.0
         
         # Bonds

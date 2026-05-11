@@ -1,13 +1,13 @@
+import rdkit
+from rdkit import Chem
 from rdkit.Chem import (Bond, 
                         Mol,
                         Conformer,
-                        GetPeriodicTable,
                         Atom)
 from rdkit.Chem.rdMolTransforms import (GetBondLength, 
                                         GetAngleDeg, 
                                         GetDihedralDeg)
 from rdkit.Chem.rdmolops import FindAllPathsOfLengthN
-from rdkit.Chem import GetPeriodicTable
 from .pattern import (CentralAtomTuple, 
                       NeighborAtomTuple, 
                       NeighborhoodTuple,
@@ -21,7 +21,7 @@ class GeometryExtractor():
     
     def __init__(self,
                  authorized_ring_sizes: list[int] = list(range(3, 10))) -> None:
-        self.periodic_table = GetPeriodicTable()
+        self.periodic_table = Chem.GetPeriodicTable()
         self.authorized_ring_sizes = authorized_ring_sizes
     
     

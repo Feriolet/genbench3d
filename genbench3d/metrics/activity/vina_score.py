@@ -10,12 +10,13 @@ class VinaScore(Metric):
                  vina_scorer: VinaScorer,
                  name: str = 'Vina score',
                  minimized: bool = False,
+                 output_dir: str = None
                  ) -> None:
         super().__init__(name)
         self.scores = {}
         self.vina_scorer = vina_scorer
         self.minimized = minimized
-        
+        self.output_dir = output_dir
         
     # def get(self, 
     #         cel: GeneratedCEL) -> float:
@@ -49,7 +50,8 @@ class VinaScore(Metric):
                 try:
                     # start_time = time.time()
                     scores = self.vina_scorer.score_mol(ligand=mol, 
-                                                        minimized=self.minimized)
+                                                        minimized=self.minimized,
+                                                        output_dir=self.output_dir)
                     if scores is None:
                         raise Exception('Failed molecule preparation')
                     # logging.info(f'Time: {time.time() - start_time}')

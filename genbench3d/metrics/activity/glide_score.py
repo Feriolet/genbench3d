@@ -17,6 +17,7 @@ class GlideScore(Metric):
                  reference_score: float = 0,
                  name: str = 'Glide score',
                  mininplace: bool = False,
+                 output_dir: str = None,
                  ) -> None:
         
         if not os.path.exists(glide_path):
@@ -29,21 +30,31 @@ class GlideScore(Metric):
         self.glide_protein = glide_protein
         self.mininplace = mininplace
         
-        self.glide_output_dirpath = self.glide_protein.glide_output_dirpath
-        self.glide_in_filename = 'glide_scoring.in'
-        self.glide_in_filepath = os.path.join(self.glide_output_dirpath,
-                                              self.glide_in_filename)
+        self.glide_output_dirpath = output_dir
+
         
         self.ligands_filename = 'scored_ligands.sdf'
         self.ligands_filepath = os.path.join(self.glide_output_dirpath,
                                              self.ligands_filename)
         
-        self.results_filepath = os.path.join(self.glide_output_dirpath,
-                                             'glide_scoring.csv')
+
         
         
     def get(self, 
-            cel: GeneratedCEL) -> list[float]:
+            cel: GeneratedCEL,
+            ligands_prefix: str = None) -> list[float]:
+        
+        if ligands_prefix:
+            self.glide_in_filename = f'{ligands_prefix}_glide_scoring_{"minimised" if self.mininplace else "unminimised"}.in'
+            self.glide_results_filename = f'{ligands_prefix}_glide_scoring_{"minimised" if self.mininplace else "unminimised"}.csv'
+        else:
+            self.glide_in_filename = f'glide_scoring_{"minimised" if self.mininplace else "unminimised"}.in'
+            self.glide_results_filename = f'glide_scoring_{"minimised" if self.mininplace else "unminimised"}.csv'
+
+        self.glide_in_filepath = os.path.join(self.glide_output_dirpath,
+                                              self.glide_in_filename)
+        self.results_filepath = os.path.join(self.glide_output_dirpath,
+                                             self.glide_results_filename)
         
         with Chem.SDWriter(self.ligands_filepath) as writer:
             i = 0
@@ -51,10 +62,13 @@ class GlideScore(Metric):
             for name, ce in cel.items():
                 mols = ce.to_mol_list()
                 for mol in mols:
-                    glide_name = f'mol_{i}'
-                    i += 1
-                    glide_names.append(glide_name)
-                    mol.SetProp('_Name', glide_name)
+                    if mol.GetProp('_Name') != '':
+                        glide_names.append(mol.GetProp('_Name'))
+                    else:
+                        glide_name = f'mol_{i}'
+                        i += 1
+                        glide_names.append(glide_name)
+                        mol.SetProp('_Name', glide_name)
                     writer.write(mol)
                    
         if os.path.exists(self.glide_in_filepath):
@@ -97,7 +111,7 @@ class GlideScore(Metric):
             docking_method = 'inplace'
         
         d = {'GRIDFILE': self.glide_protein.grid_filepath,
-             'OUTPUTDIR': self.glide_output_dirpath,
+             'POSE_OUTTYPE': 'poseviewer_sd',
              'DOCKING_METHOD': docking_method,
              'PRECISION' : 'SP',
              'LIGANDFILE': self.ligands_filepath,

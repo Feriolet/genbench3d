@@ -162,7 +162,10 @@ class ConfEnsembleLibrary() :
             unknown_counter = 0
             for mol in mol_list:
                 try :
-                    name = Chem.MolToSmiles(mol)
+                    if mol.GetProp('_Name') != '':
+                        name = mol.GetProp('_Name')
+                    else:
+                        name = Chem.MolToSmiles(mol)
                 except:
                     print('Unknown SMILES')
                     name = f'Unknown_{unknown_counter}'
