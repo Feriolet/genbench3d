@@ -63,14 +63,14 @@ class ComplexMinimizer():
                 for i in range(self.pocket.mol.GetNumAtoms()):
                     mmff.AddFixedPoint(i)
                 
-            with Chem.SDWriter('test_complex_before.sdf') as w:
-                w.write(complx)
+            # with Chem.SDWriter('test_complex_before.sdf') as w:
+            #     w.write(complx)
                 
             results = mmff.Minimize(maxIts=self.n_steps)
             not_converged = results
 
-            with Chem.SDWriter('test_complex_after.sdf') as w:
-                w.write(complx)
+            # with Chem.SDWriter('test_complex_after.sdf') as w:
+            #     w.write(complx)
 
             E_final = mmff.CalcEnergy()
             if not_converged:

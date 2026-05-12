@@ -14,13 +14,19 @@ from genbench3d.utils import preprocess_mols
 from genbench3d.geometry import ReferenceGeometry
 import sys
 import pandas as pd
-
+from multiprocessing import Pool
 
 from rdkit import RDLogger 
 RDLogger.DisableLog('rdApp.*')
 
 from warnings import simplefilter
 simplefilter(action='ignore', category=DeprecationWarning)
+
+def minimize_ligand(mol):
+    complex_minimizer = ComplexMinimizer(pocket,
+                                            config=config['minimization'])
+    
+    return complex_minimizer.minimize_ligand(mol)
 
 def align_mol_name_with_results(mol_l, original_mol_name, results):
     results_with_individual_value_dict = {}
@@ -29,19 +35,13 @@ def align_mol_name_with_results(mol_l, original_mol_name, results):
 
     for key, val in results.items():
         if type(val) == list and len(val) == total_valid_mol:
-            data = pd.DataFrame(val, index=cel_mol_name)
-            results_with_individual_value_dict[key] = list(data.reindex(original_mol_name).to_dict().values())
+            DATA_COLUMN = 'genbench_key'
+            data = pd.DataFrame(val, index=cel_mol_name, columns=[DATA_COLUMN])
+            results_with_individual_value_dict[key] = list(data.reindex(original_mol_name).to_dict()[DATA_COLUMN].values())
         else:
             results_with_individual_value_dict[key] = val
     
     return results_with_individual_value_dict
-
-
-logging.basicConfig(format='%(asctime)s [%(levelname)s] %(funcName)s: %(message)s',
-                    datefmt='%d/%m/%Y %I:%M:%S %p', 
-                    stream=sys.stdout,
-                    encoding='utf-8', 
-                    level=logging.INFO)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--config_path", 
@@ -100,6 +100,21 @@ args = parser.parse_args()
 
 config = yaml.safe_load(open(args.config_path, 'r'))
 
+if args.log_output:
+    logging.basicConfig(format='%(asctime)s [%(levelname)s] %(funcName)s: %(message)s',
+                        datefmt='%d/%m/%Y %I:%M:%S %p',
+                        filemode='w',
+                        filename=args.log_output, 
+                        encoding='utf-8', 
+                        level=logging.INFO)
+else:
+    logging.basicConfig(format='%(asctime)s [%(levelname)s] %(funcName)s: %(message)s',
+                    datefmt='%d/%m/%Y %I:%M:%S %p',
+                    filemode='w',
+                    filename='sb_benchmark.log', 
+                    encoding='utf-8', 
+                    level=logging.INFO)
+    
 if args.source == 'csd_drug':
     source = CSDDrug(subset_path=config['data']['csd_drug_subset_path'])
 elif args.source == 'crossdocked':
@@ -155,20 +170,25 @@ if args.glide:
 
 if args.gold:
     sb_benchmark.setup_gold_plp(vina_protein)
-
-if args.minimize:
-    complex_minimizer = ComplexMinimizer(pocket,
-                                            config=config['minimization'])
     
 gen_mols = Chem.SDMolSupplier(args.input_sdf, removeHs=False)
 name_l = [mol.GetProp('_Name') if mol else f"unknown_{i}" for i, mol in enumerate(gen_mols) ]
 
 n_total_mols = len(gen_mols) # Used to compute the molecular graph Validity metric
 gen_mols = preprocess_mols(gen_mols) # Remove empty, None and fragmented RDKit molecules 
+
 gen_mols_h = [Chem.AddHs(mol, addCoords=True) for mol in gen_mols]
 if args.minimize:
-    gen_mols = [complex_minimizer.minimize_ligand(mol) 
-                for mol in gen_mols_h]
+    Chem.SetDefaultPickleProperties(Chem.PropertyPickleOptions.AllProps)
+    MAX_CPU_USED = 20
+    CPU_BUFFER = 5
+    num_cpu_available = len(os.sched_getaffinity(0)) - CPU_BUFFER
+    
+    used_cpu = max(1, min(MAX_CPU_USED, num_cpu_available))
+    logging.info(f'Minimizing ligand... Using {used_cpu} CPU available')
+    with Pool(used_cpu) as p:
+        gen_mols = p.map(minimize_ligand, gen_mols_h)
+
     gen_mols = preprocess_mols(gen_mols) # Remove empty, None and fragmented RDKit molecules 
 else:
     gen_mols = gen_mols_h
