@@ -10,7 +10,7 @@ from genbench3d import SBGenBench3D
 from genbench3d.data.source import CSDDrug, CrossDocked, SDFSource
 from genbench3d.data.structure import VinaProtein, GlideProtein, Pocket
 from genbench3d.data import ComplexMinimizer
-from genbench3d.utils import preprocess_mols
+from genbench3d.utils import preprocess_mols, preprocess_mol
 from genbench3d.geometry import ReferenceGeometry
 import sys
 import pandas as pd

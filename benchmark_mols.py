@@ -21,13 +21,23 @@ RDLogger.DisableLog('rdApp.*')
 
 from warnings import simplefilter
 simplefilter(action='ignore', category=DeprecationWarning)
+import pandas as pd
 
-logging.basicConfig(format='%(asctime)s [%(levelname)s] %(funcName)s: %(message)s',
-                    datefmt='%d/%m/%Y %I:%M:%S %p',
-                    filemode='w',
-                    filename='benchmark.log', 
-                    encoding='utf-8', 
-                    level=logging.INFO)
+def align_mol_name_with_results(mol_l, original_mol_name, results):
+    results_with_individual_value_dict = {}
+    cel_mol_name = [mol.GetProp('_Name') for mol in mol_l]
+    total_valid_mol = max([len(val) for val in results.values() if type(val) == list])
+
+    for key, val in results.items():
+        if type(val) == list and len(val) == total_valid_mol:
+            DATA_COLUMN = 'genbench_key'
+            data = pd.DataFrame(val, index=cel_mol_name, columns=[DATA_COLUMN])
+            results_with_individual_value_dict[key] = list(data.reindex(original_mol_name).to_dict()[DATA_COLUMN].values())
+        else:
+            results_with_individual_value_dict[key] = val
+    
+    return results_with_individual_value_dict
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -58,8 +68,27 @@ if __name__ == '__main__':
     parser.add_argument("-n", "--native_ligand_sdf",
                         # default='test_set/BSD_ASPTE_1_130_0/2z3h_A_rec_1wn6_bst_lig_tt_docked_3.sdf',
                         help="Native ligand corresponding to the pocket used to generate the molecules")
-
+    parser.add_argument('--log_output',
+                        type=str, default='benchmark.log',
+                        help="log Output directory")
     args = parser.parse_args()
+
+
+    if args.log_output:
+        logging.basicConfig(format='%(asctime)s [%(levelname)s] %(funcName)s: %(message)s',
+                            datefmt='%d/%m/%Y %I:%M:%S %p',
+                            filemode='w',
+                            filename=args.log_output, 
+                            encoding='utf-8', 
+                            level=logging.INFO)
+    else:
+        logging.basicConfig(format='%(asctime)s [%(levelname)s] %(funcName)s: %(message)s',
+                        datefmt='%d/%m/%Y %I:%M:%S %p',
+                        filemode='w',
+                        filename='sb_benchmark.log', 
+                        encoding='utf-8', 
+                        level=logging.INFO)
+        
 
     config = yaml.safe_load(open(args.config_path, 'r'))
 
@@ -108,6 +137,7 @@ if __name__ == '__main__':
     gen_mols : list[Chem.Mol] = []
     start_sdf = [mol for mol in Chem.MultithreadedSDMolSupplier(args.input_sdf, removeHs=False, numWriterThreads=10)]
     n_total_mols = len(start_sdf) # Used to compute the molecular graph Validity metric
+    Chem.SetDefaultPickleProperties(Chem.PropertyPickleOptions.AllProps)
     with ProcessPoolExecutor(max_workers=8) as executor:
         futures = []
         for x in  tqdm(start_sdf):
@@ -129,16 +159,22 @@ if __name__ == '__main__':
 
     print(f'finish reading in {time() - start}')
 
+    name_l = [mol.GetProp('_Name') if mol else f"unknown_{i}" for i, mol in enumerate(gen_mols) ]
     if args.minimize:
+        
         gen_mols = [complex_minimizer.minimize_ligand(mol) 
                     for mol in gen_mols]
         gen_mols = preprocess_mols(gen_mols)
 
     results = benchmark.get_results_for_mol_list(gen_mols,
                                                 n_total_mols=n_total_mols)
-        
+
+    results = align_mol_name_with_results(mol_l=gen_mols,
+                                        original_mol_name=name_l,
+                                        results=results)
+
     with open(args.output_json, 'w') as f:
-        json.dump(results, f)
+        json.dump(results, f, indent=4)
         
     summary = {}
     for metric_name, values in results.items():

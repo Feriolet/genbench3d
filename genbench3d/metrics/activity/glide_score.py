@@ -38,8 +38,6 @@ class GlideScore(Metric):
                                              self.ligands_filename)
         
 
-        
-        
     def get(self, 
             cel: GeneratedCEL,
             ligands_prefix: str = None) -> list[float]:
